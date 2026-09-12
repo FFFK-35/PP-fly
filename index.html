@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>小手机</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0b0b0f;
+    background-image: radial-gradient(circle at 30% 20%, #2a2a3a 0%, #0b0b0f 60%);
+  }
+  input, textarea, select { font-size: 16px; font-family: inherit; }
+
+  /* ====== 手机外壳（白色）+ 屏幕（留间隙） ====== */
+  :root { --shell-w: 380px; --shell-h: 800px; --scale: 1; }
+  .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .phone-shell {
+    position: relative; width: var(--shell-w); height: var(--shell-h);
+    transform: scale(var(--scale)); transform-origin: center center;
+    background: #fff; border-radius: 54px; padding: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 6px 16px rgba(0,0,0,.4), inset 0 0 0 2px #e9e9ee;
+  }
+  .phone-screen { position: relative; width: 100%; height: 100%; border-radius: 44px; overflow: hidden; background: #000; }
+  .status-bar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 60; height: 44px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 26px; color: #fff; font-size: 14px; font-weight: 600;
+    pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+  .status-bar .sb-time { font-variant-numeric: tabular-nums; }
+  .status-bar.light { color: #111; text-shadow: none; }
+
+  .layer { position: absolute; inset: 0; transition: opacity .35s ease, transform .35s ease; }
+  .layer.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+
+  /* ====== 锁屏 ====== */
+  .lockscreen { background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 70px 0 50px; color: #fff; z-index: 50; }
+  .lockscreen::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.25); }
+  .lock-time { position: relative; font-size: 86px; font-weight: 200; letter-spacing: 2px; text-shadow: 0 2px 12px rgba(0,0,0,.5); font-variant-numeric: tabular-nums; }
+  .lock-date { position: relative; font-size: 18px; opacity: .95; margin-top: 6px; }
+  .lock-unlock { position: relative; width: 250px; height: 52px; border-radius: 26px; background: rgba(255,255,255,.25); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; overflow: hidden; user-select: none; touch-action: none; }
+  .lock-unlock .hint { transition: opacity .2s; }
+  .lock-unlock .knob { position: absolute; left: 4px; top: 4px; width: 44px; height: 44px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; color: #3b82f6; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .lock-unlock .knob svg { width: 22px; height: 22px; }
+
+  /* ====== 桌面 ====== */
+  .homescreen { background-size: cover; background-position: center; display: flex; flex-direction: column; justify-content: space-between; padding: 54px 20px 18px; z-index: 10; }
+  .hs-widgets { display: flex; gap: 12px; }
+  .widget { flex: 1; padding: 14px 16px; border-radius: 20px; background: rgba(255,255,255,.18); backdrop-filter: blur(14px); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .widget.clock .w-time { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .widget.clock .w-date { font-size: 12px; opacity: .9; margin-top: 2px; }
+  .widget.weather .w-temp { font-size: 26px; font-weight: 600; }
+  .widget.weather .w-desc { font-size: 12px; opacity: .9; }
+  .hs-apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 10px; padding: 8px 4px; }
+  .app-icon { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
+  .app-icon .icon { width: 58px; height: 58px; border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 14px rgba(0,0,0,.25); }
+  .app-icon .icon svg { width: 32px; height: 32px; color: #fff; }
+  .app-icon .name { font-size: 12px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .icon.social { background: linear-gradient(135deg,#34d399,#10b981); }
+  .icon.phone  { background: linear-gradient(135deg,#60a5fa,#3b82f6); }
+  .icon.sms    { background: linear-gradient(135deg,#4ade80,#22c55e); }
+  .icon.memo   { background: linear-gradient(135deg,#fbbf24,#f59e0b); }
+
+  /* ====== dock ====== */
+  .dock { display: flex; justify-content: space-around; align-items: center; background: rgba(255,255,255,.18); backdrop-filter: blur(18px); border-radius: 26px; padding: 8px; gap: 8px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+  .dock-item { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; flex: 1; }
+  .dock-item .d-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,.25); }
+  .dock-item .d-icon svg { width: 26px; height: 26px; color: #fff; }
+  .dock-item.settings .d-icon { background: linear-gradient(135deg,#9ca3af,#6b7280); }
+  .dock-item.character .d-icon { background: linear-gradient(135deg,#a78bfa,#7c3aed); }
+  .dock-item .d-name { font-size: 11px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+
+  /* ====== 应用窗口 ====== */
+  .app-window { z-index: 30; background: #f5f5f7; display: flex; flex-direction: column; }
+  .app-window.hidden { transform: scale(.92); opacity: 0; }
+  .app-header { flex: 0 0 auto; padding: 50px 18px 12px; display: flex; align-items: center; gap: 12px; background: #fff; border-bottom: 1px solid #eee; }
+  .app-header .back { width: 30px; cursor: pointer; color: #3b82f6; }
+  .app-header .back svg { width: 24px; height: 24px; }
+  .app-header .title { font-size: 17px; font-weight: 600; flex: 1; }
+  .app-header .action { font-size: 14px; color: #3b82f6; cursor: pointer; }
+  .app-header .action svg { width: 22px; height: 22px; }
+  .app-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ====== 设置 ====== */
+  .settings-list { padding: 14px 16px 40px; }
+  .settings-group { margin-bottom: 22px; }
+  .settings-group > h3 { font-size: 13px; color: #6b7280; margin: 0 6px 8px; font-weight: 600; }
+  .settings-card { background: #fff; border-radius: 14px; overflow: hidden; }
+  .row { display: flex; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f0f0f2; gap: 10px; }
+  .row:last-child { border-bottom: none; }
+  .row label { font-size: 14px; color: #111; flex: 0 0 90px; }
+  .row input, .row select, .row textarea { flex: 1; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 14px; background: #fff; color: #111; }
+  .row textarea { resize: vertical; min-height: 60px; }
+  .btn { display: inline-block; padding: 9px 16px; border-radius: 10px; font-size: 14px; background: #3b82f6; color: #fff; border: none; cursor: pointer; }
+  .btn.ghost { background: #e5e7eb; color: #111; }
+  .btn.sm { padding: 6px 12px; font-size: 13px; }
+
+  /* ====== 角色卡 ====== */
+  .char-list, .contact-list, .feed-list, .msg-list { padding: 14px 16px 40px; }
+  .char-card, .contact-card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; cursor: pointer; }
+  .char-avatar { width: 48px; height: 48px; border-radius: 50%; background: #e5e7eb; object-fit: cover; flex: 0 0 auto; }
+  .char-info { flex: 1; min-width: 0; }
+  .char-info .cn { font-size: 15px; font-weight: 600; }
+  .char-info .cd { font-size: 12px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .char-edit { font-size: 13px; color: #3b82f6; cursor: pointer; }
+  .char-del { font-size: 13px; color: #ef4444; cursor: pointer; }
+
+  /* ====== 社交应用 tab ====== */
+  .tab-bar { flex: 0 0 auto; display: flex; background: #fff; border-top: 1px solid #eee; padding: 6px 0 10px; }
+  .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #9ca3af; font-size: 11px; }
+  .tab-item svg { width: 24px; height: 24px; }
+  .tab-item.active { color: #10b981; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .chat-list-item { display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: #fff; border-bottom: 1px solid #f0f0f2; cursor: pointer; }
+  .chat-list-item .last { flex: 1; min-width: 0; }
+  .chat-list-item .last .ln { font-size: 15px; font-weight: 500; }
+  .chat-list-item .last .lm { font-size: 13px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chat-list-item .lt { font-size: 11px; color: #9ca3af; }
+
+  .me-card { padding: 24px 16px; background: #fff; display: flex; gap: 14px; align-items: center; }
+  .me-card .avatar { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: #e5e7eb; }
+  .me-card .mn { font-size: 18px; font-weight: 600; }
+  .me-card .mid { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+
+  /* 朋友圈 */
+  .moment-card { background: #fff; padding: 14px 16px; margin-bottom: 8px; }
+  .moment-card .m-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .moment-card .m-head img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
+  .moment-card .m-head .m-name { font-size: 14px; font-weight: 600; color: #5b7fa3; }
+  .moment-card .m-text { font-size: 14px; color: #222; line-height: 1.6; white-space: pre-wrap; }
+  .moment-card .m-foot { font-size: 12px; color: #9ca3af; margin-top: 8px; }
+
+  /* 信息 feed */
+  .sms-card { background: #fff; padding: 14px 16px; margin-bottom: 8px; border-radius: 14px; }
+  .sms-card .s-head { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+  .sms-card .s-head img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+  .sms-card .s-name { font-size: 14px; font-weight: 600; }
+  .sms-card .s-time { font-size: 11px; color: #9ca3af; margin-left: auto; }
+  .sms-card .s-text { font-size: 14px; color: #222; line-height: 1.6; white-space: pre-wrap; }
+
+  /* ====== 聊天对话 ====== */
+  .chat-window { z-index: 40; background: #ededed; display: flex; flex-direction: column; }
+  .chat-window.hidden { transform: scale(.92); opacity: 0; }
+  .chat-msgs { flex: 1; overflow-y: auto; padding: 60px 14px 14px; }
+  .bubble { max-width: 75%; padding: 9px 13px; border-radius: 14px; font-size: 14px; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; word-break: break-word; }
+  .bubble.left { background: #fff; margin-right: auto; }
+  .bubble.right { background: #95ec69; margin-left: auto; }
+  .chat-input-bar { flex: 0 0 auto; display: flex; gap: 8px; padding: 8px 12px 18px; background: #f7f7f7; border-top: 1px solid #e0e0e0; align-items: flex-end; }
+  .chat-input-bar input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 9px 12px; font-size: 14px; background: #fff; }
+  .chat-input-bar .send-btn { width: 36px; height: 36px; border-radius: 8px; background: #10b981; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .chat-input-bar .send-btn svg { width: 20px; height: 20px; }
+  .chat-input-bar .call-btn { width: 36px; height: 36px; border-radius: 8px; background: #3b82f6; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .chat-input-bar .call-btn svg { width: 20px; height: 20px; }
+
+  /* ====== 通话界面 ====== */
+  .call-screen { z-index: 50; display: flex; flex-direction: column; background-size: cover; background-position: center; color: #fff; }
+  .call-screen::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+  .call-top { position: relative; flex: 0 0 auto; padding: 60px 20px 20px; text-align: center; }
+  .call-top .c-avatar { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,.5); margin: 0 auto 12px; display: block; background: #555; }
+  .call-top .c-name { font-size: 22px; font-weight: 600; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .call-top .c-status { font-size: 13px; opacity: .85; margin-top: 4px; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .call-dialogs { position: relative; flex: 1; overflow-y: auto; padding: 10px 16px; }
+  .call-bubble { background: rgba(255,255,255,0.18); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.28); border-radius: 18px; padding: 11px 15px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); max-width: 80%; font-size: 14px; line-height: 1.55; margin-bottom: 10px; white-space: pre-wrap; word-break: break-word; }
+  .call-bubble.me { margin-left: auto; background: rgba(96,165,250,0.30); border-color: rgba(96,165,250,0.5); }
+  .call-bottom { position: relative; flex: 0 0 auto; padding: 8px 16px 30px; }
+  .call-input-row { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .call-input-row input { flex: 1; background: rgba(255,255,255,0.18); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3); border-radius: 22px; padding: 10px 16px; color: #fff; font-size: 14px; }
+  .call-input-row input::placeholder { color: rgba(255,255,255,0.7); }
+  .call-input-row .say-btn { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.25); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .call-input-row .say-btn svg { width: 20px; height: 20px; }
+  .hangup-btn { width: 64px; height: 64px; border-radius: 50%; background: #ef4444; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 4px 14px rgba(239,68,68,.5); }
+  .hangup-btn svg { width: 30px; height: 30px; transform: rotate(135deg); }
+
+  /* 通用空/加载 */
+  .empty { text-align: center; color: #9ca3af; padding: 40px 0; font-size: 14px; }
+  .loading { text-align: center; color: #6b7280; padding: 30px 0; font-size: 13px; }
+
+  /* 备忘录 */
+  .memo-content { padding: 16px; }
+  .memo-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); white-space: pre-wrap; word-break: break-word; font-size: 14px; line-height: 1.6; color: #222; }
+  .memo-card .m-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .memo-card .m-meta { font-size: 12px; color: #9ca3af; margin-top: 10px; }
+  .tpl-editor { padding: 14px 16px 40px; }
+  .tpl-editor textarea { width: 100%; min-height: 120px; }
+  .tpl-fields { margin-top: 10px; font-size: 12px; color: #6b7280; }
+  .tpl-field-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .tpl-field-row input { flex: 1; }
+  .tpl-field-row select { width: 110px; }
+  .tpl-help { font-size: 12px; color: #9ca3af; margin-top: 8px; line-height: 1.6; }
+
+  /* toast */
+  .toast { position: fixed; left: 50%; top: 40%; transform: translate(-50%, 0); background: rgba(0,0,0,.8); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  /* SVG 图标库 */
+  .ic { display: inline-block; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-shell">
+    <div class="phone-screen">
+
+      <!-- 状态栏 -->
+      <div class="status-bar" id="statusBar">
+        <span class="sb-time" id="sbTime">--:--</span>
+        <span class="sb-right" id="sbRight"></span>
+      </div>
+
+      <!-- 锁屏 -->
+      <div class="layer lockscreen" id="lockscreen">
+        <div></div>
+        <div style="text-align:center">
+          <div class="lock-time" id="lockTime">--:--</div>
+          <div class="lock-date" id="lockDate">--</div>
+        </div>
+        <div class="lock-unlock" id="unlockBar">
+          <span class="hint" id="unlockHint">滑动解锁</span>
+          <div class="knob" id="unlockKnob"></div>
+        </div>
+      </div>
+
+      <!-- 桌面 -->
+      <div class="layer homescreen" id="homescreen">
+        <div class="hs-widgets">
+          <div class="widget clock">
+            <div class="w-time" id="widgetTime">--:--</div>
+            <div class="w-date" id="widgetDate">--</div>
+          </div>
+          <div class="widget weather">
+            <div class="w-temp">晴</div>
+            <div class="w-desc">小手机的世界</div>
+          </div>
+        </div>
+        <div class="hs-apps">
+          <div class="app-icon" data-app="social">
+            <div class="icon social" id="icSocial"></div>
+            <div class="name">AI聊天</div>
+          </div>
+          <div class="app-icon" data-app="phone">
+            <div class="icon phone" id="icPhone"></div>
+            <div class="name">电话</div>
+          </div>
+          <div class="app-icon" data-app="messages">
+            <div class="icon sms" id="icSms"></div>
+            <div class="name">信息</div>
+          </div>
+          <div class="app-icon" data-app="memo">
+            <div class="icon memo" id="icMemo"></div>
+            <div class="name">备忘录</div>
+          </div>
+        </div>
+        <div class="dock">
+          <div class="dock-item settings" data-app="settings">
+            <div class="d-icon" id="icSettings"></div>
+            <div class="d-name">设置</div>
+          </div>
+          <div class="dock-item character" data-app="character">
+            <div class="d-icon" id="icCharacter"></div>
+            <div class="d-name">创造角色</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== 社交应用（AI聊天）====== -->
+      <div class="layer app-window hidden" id="win-social">
+        <div class="app-header">
+          <div class="back" data-back data-win="social"></div>
+          <div class="title" id="socialTitle">AI聊天</div>
+          <div class="action" id="socialPlus"></div>
+        </div>
+        <div class="app-body" style="display:flex;flex-direction:column">
+          <div class="tab-pane active" id="pane-chats" style="flex:1;overflow-y:auto">
+            <div id="chatList" class="empty">还没有聊天，去通讯录加好友吧</div>
+          </div>
+          <div class="tab-pane" id="pane-contacts" style="flex:1;overflow-y:auto">
+            <div id="contactList" class="empty">通讯录为空</div>
+          </div>
+          <div class="tab-pane" id="pane-moments" style="flex:1;overflow-y:auto">
+            <div style="display:flex;justify-content:flex-end;padding:10px 16px">
+              <button class="btn sm" id="btnRefreshMoments">刷新</button>
+            </div>
+            <div id="momentsList" class="empty">朋友圈还没有动态</div>
+          </div>
+          <div class="tab-pane" id="pane-me" style="flex:1;overflow-y:auto">
+            <div class="me-card">
+              <img class="avatar" id="meAvatar" alt="">
+              <div>
+                <div class="mn" id="meName">我</div>
+                <div class="mid">小手机号：phone-me</div>
+              </div>
+            </div>
+            <div class="settings-card" style="margin:14px 16px">
+              <div class="row" style="cursor:pointer" id="meSetAvatar"><label>头像</label><input id="meAvatarInput" placeholder="图片URL"></div>
+              <div class="row"><label>昵称</label><input id="meNameInput" placeholder="我的昵称"></div>
+              <div class="row"><button class="btn" id="btnSaveMe">保存</button></div>
+            </div>
+          </div>
+          <div class="tab-bar">
+            <div class="tab-item active" data-tab="chats" id="tabChats"></div>
+            <div class="tab-item" data-tab="contacts" id="tabContacts"></div>
+            <div class="tab-item" data-tab="moments" id="tabMoments"></div>
+            <div class="tab-item" data-tab="me" id="tabMe"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 加好友（从角色选） -->
+      <div class="layer app-window hidden" id="win-addfriend">
+        <div class="app-header">
+          <div class="back" data-back data-win="addfriend"></div>
+          <div class="title">添加好友</div>
+        </div>
+        <div class="app-body">
+          <div id="addFriendList" class="contact-list"></div>
+        </div>
+      </div>
+
+      <!-- ====== 聊天对话窗口 ====== -->
+      <div class="layer chat-window hidden" id="win-chat">
+        <div class="app-header">
+          <div class="back" data-back data-win="chat"></div>
+          <div class="title" id="chatTitle">聊天</div>
+        </div>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="chat-input-bar">
+          <button class="call-btn" id="btnStartCall" title="语音通话"></button>
+          <input id="chatInput" placeholder="说点什么...">
+          <button class="send-btn" id="btnSend"></button>
+        </div>
+      </div>
+
+      <!-- ====== 通话界面 ====== -->
+      <div class="layer call-screen hidden" id="win-call">
+        <div class="call-top">
+          <img class="c-avatar" id="callAvatar" alt="">
+          <div class="c-name" id="callName">--</div>
+          <div class="c-status" id="callStatus">通话中</div>
+        </div>
+        <div class="call-dialogs" id="callDialogs"></div>
+        <div class="call-bottom">
+          <div class="call-input-row">
+            <input id="callInput" placeholder="输入你想对TA说的话…">
+            <button class="say-btn" id="btnSay"></button>
+          </div>
+          <button class="hangup-btn" id="btnHangup"></button>
+        </div>
+      </div>
+
+      <!-- ====== 电话应用（联系人列表 → 通话）====== -->
+      <div class="layer app-window hidden" id="win-phone">
+        <div class="app-header">
+          <div class="back" data-back data-win="phone"></div>
+          <div class="title">电话</div>
+        </div>
+        <div class="app-body">
+          <div id="phoneContactList" class="contact-list"></div>
+        </div>
+      </div>
+
+      <!-- ====== 信息应用 ====== -->
+      <div class="layer app-window hidden" id="win-messages">
+        <div class="app-header">
+          <div class="back" data-back data-win="messages"></div>
+          <div class="title">信息</div>
+          <div class="action" id="btnRefreshSms">刷新</div>
+        </div>
+        <div class="app-body">
+          <div id="smsList" class="feed-list"></div>
+        </div>
+      </div>
+
+      <!-- ====== 备忘录 ====== -->
+      <div class="layer app-window hidden" id="win-memo">
+        <div class="app-header">
+          <div class="back" data-back data-win="memo"></div>
+          <div class="title">备忘录</div>
+          <div class="action" id="btnMemoTpl">模板</div>
+        </div>
+        <div class="app-body">
+          <div class="memo-content" id="memoContent">
+            <div class="empty">点击右上角「刷新」让 AI 生成内容</div>
+          </div>
+        </div>
+      </div>
+      <div class="layer app-window hidden" id="win-memotpl">
+        <div class="app-header">
+          <div class="back" data-back-memo></div>
+          <div class="title">备忘录模板</div>
+          <div class="action" id="btnSaveTpl">保存</div>
+        </div>
+        <div class="app-body">
+          <div class="tpl-editor">
+            <div class="settings-card" style="padding:14px">
+              <div class="row"><label>生成数量</label><input id="tplCount" type="number" min="1" max="10" value="3"></div>
+            </div>
+            <div class="tpl-help">模板用 <code>{{字段}}</code> 占位符，AI 会填充。下方「字段约束」可对每个字段加格式约束（如日期、数字、枚举）。</div>
+            <textarea id="tplText" placeholder="# {{标题}}&#10;&#10;{{内容}}&#10;&#10;日期：{{日期}}"></textarea>
+            <div class="tpl-fields">
+              <div style="font-weight:600;margin-bottom:6px">字段约束</div>
+              <div id="tplFields"></div>
+              <button class="btn ghost sm" id="btnAddField" style="margin-top:8px">+ 添加字段约束</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== 设置 ====== -->
+      <div class="layer app-window hidden" id="win-settings">
+        <div class="app-header">
+          <div class="back" data-back data-win="settings"></div>
+          <div class="title">设置</div>
+        </div>
+        <div class="app-body">
+          <div class="settings-list">
+            <div class="settings-group">
+              <h3>API 配置（支持中转站/公益站）</h3>
+              <div class="settings-card">
+                <div class="row"><label>接口地址</label><input id="apiUrl" placeholder="https://api.openai.com/v1"></div>
+                <div class="row"><label>API Key</label><input id="apiKey" type="password" placeholder="sk-..."></div>
+                <div class="row"><label>模型</label><input id="apiModel" list="modelList" placeholder="gpt-4o-mini">
+                  <datalist id="modelList">
+                    <option value="gpt-4o-mini"><option value="gpt-4o"><option value="gpt-3.5-turbo">
+                    <option value="deepseek-chat"><option value="qwen-plus">
+                  </datalist>
+                </div>
+                <div class="row"><label>温度</label><input id="apiTemp" type="number" step="0.1" min="0" max="2" value="0.9"></div>
+                <div class="row"><button class="btn" id="btnTestApi">测试连接</button><button class="btn ghost" id="btnSaveApi">保存</button></div>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>壁纸</h3>
+              <div class="settings-card">
+                <div class="row"><label>桌面壁纸</label><input id="wpHome" placeholder="图片URL或留空"></div>
+                <div class="row"><label>锁屏壁纸</label><input id="wpLock" placeholder="图片URL或留空"></div>
+                <div class="row"><button class="btn" id="btnApplyWall">应用壁纸</button><button class="btn ghost" id="btnDefWall">默认</button></div>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>通话背景</h3>
+              <div class="settings-card">
+                <div class="row"><label>背景图URL</label><input id="callBg" placeholder="留空用纯色"></div>
+                <div class="row"><button class="btn" id="btnSaveCallBg">保存</button></div>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>AI 行为模式（信息/朋友圈生成节奏）</h3>
+              <div class="settings-card">
+                <div class="row"><label>模式</label>
+                  <select id="behaviorMode">
+                    <option value="proactive">主动：进入即生成新内容</option>
+                    <option value="timed">定时：每 N 分钟自动生成</option>
+                    <option value="reactive">被动：仅玩家刷新/对话后才生成</option>
+                  </select>
+                </div>
+                <div class="row" id="rowInterval"><label>间隔(分钟)</label><input id="behaviorInterval" type="number" min="1" value="10"></div>
+                <div class="row"><button class="btn" id="btnSaveBehavior">保存</button></div>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>解锁</h3>
+              <div class="settings-card">
+                <div class="row"><label>解锁方式</label>
+                  <select id="unlockMode">
+                    <option value="slide">滑动解锁</option>
+                    <option value="pin">数字密码（待开发）</option>
+                    <option value="pattern">图案密码（待开发）</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== 创造角色 ====== -->
+      <div class="layer app-window hidden" id="win-character">
+        <div class="app-header">
+          <div class="back" data-back data-win="character"></div>
+          <div class="title">创造角色</div>
+          <div class="action" id="btnNewChar">+新建</div>
+        </div>
+        <div class="app-body"><div class="char-list" id="charList"></div></div>
+      </div>
+      <div class="layer app-window hidden" id="win-charedit">
+        <div class="app-header">
+          <div class="back" data-back-char></div>
+          <div class="title">角色编辑</div>
+          <div class="action" id="btnSaveChar">保存</div>
+        </div>
+        <div class="app-body">
+          <div class="settings-list">
+            <div class="settings-card">
+              <div class="row"><label>姓名</label><input id="chName" placeholder="角色名"></div>
+              <div class="row"><label>头像URL</label><input id="chAvatar" placeholder="图片URL或留空"></div>
+              <div class="row"><label>年龄</label><input id="chAge" placeholder="如 18"></div>
+              <div class="row"><label>性别</label><input id="chGender" placeholder="如 女"></div>
+              <div class="row"><label>性格</label><input id="chPersonality" placeholder="如 温柔、内向"></div>
+              <div class="row"><label>背景</label><textarea id="chBackground" placeholder="人物背景故事..."></textarea></div>
+              <div class="row"><label>说话风格</label><textarea id="chStyle" placeholder="语气、口癖、习惯..."></textarea></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ SVG 图标库 ============ */
+const SVG = {
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l13 2-13 2v6z"/></svg>',
+  phoneCall: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>',
+  hangup: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>',
+  social: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.5 3 2 6.5 2 11c0 2 1 3.8 2.7 5L4 21l5-1.5c1 .3 2 .5 3 .5 5.5 0 10-3.5 10-8s-4.5-8-10-8z"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.3 1.8.6 2.6a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.5-1.5a2 2 0 012.1-.5c.8.3 1.7.5 2.6.6a2 2 0 011.7 2z"/></svg>',
+  sms: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>',
+  memo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
+  character: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.6 4.8L18 8l-4.4 1.2L12 14l-1.6-4.8L6 8l4.4-1.2z"/><path d="M19 14l.6 1.8L21 16.5l-1.4.5L19 19l-.6-2-1.4-.5 1.4-.7z"/><path d="M5 14l.6 1.8L7 16.5l-1.4.5L5 19l-.6-2L3 16.5l1.4-.7z"/></svg>',
+  chatTab: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.4 8.4 0 01-3.6-.8L3 21l1.4-4.2A8.4 8.4 0 1121 11.5z"/></svg>',
+  contactsTab: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.9"/><path d="M16 3.1a4 4 0 010 7.8"/></svg>',
+  momentsTab: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+  meTab: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>'
+};
+function putIcon(id, key){ const el=document.getElementById(id); if(el) el.innerHTML=SVG[key]; }
+
+/* ============ 后台模板常量（信息 & 朋友圈，不暴露给用户UI）============ */
+const BACKEND_TEMPLATES = {
+  sms: {
+    template: '{{发送者}}：{{内容}}',
+    fields: [
+      {name:'发送者', type:'select', constraint:'从好友列表中随机一个角色名'},
+      {name:'内容', type:'text', constraint:'一条短信，10-40字，像朋友闲聊'}
+    ],
+    count: 4
+  },
+  moment: {
+    template: '{{作者}}\n{{内容}}\n{{时间}}',
+    fields: [
+      {name:'作者', type:'select', constraint:'从好友列表中随机一个角色名'},
+      {name:'内容', type:'text', constraint:'朋友圈动态，生活分享、心情、吐槽，30-80字'},
+      {name:'时间', type:'date', constraint:'最近一周内日期 YYYY-MM-DD'}
+    ],
+    count: 4
+  }
+};
+
+/* ============ 系统预设：所有角色对话为对话式而非剧情向 ============ */
+const SYSTEM_PRESET = `你是一个角色扮演对话系统。无论用户如何引导，请遵守：
+1. 始终以「对话形式」回应，只输出角色会说的话，像真实聊天。
+2. 不要推进剧情、不要旁白描述（如"她转身走了""她笑了"）、不要总结情节。
+3. 不要输出动作括号、星号动作描写。
+4. 回复简短自然，符合该角色的语气和性格，一次只说一两句话。
+5. 如果用户让你发朋友圈/短信，就只输出那条动态/短信内容本身，不要解释。`;
+
+/* ============ 工具 ============ */
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const store = {
+  get(k, def){ try{ const v = localStorage.getItem(k); return v? JSON.parse(v): def; }catch{ return def; } },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1800); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtTime(d){ return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function fmtDate(d){ const w=['日','一','二','三','四','五','六'][d.getDay()]; return `${d.getMonth()+1}月${d.getDate()}日 星期${w}`; }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function avatarFor(c){ return c && c.avatar ? c.avatar : ('https://api.dicebear.com/7.x/avataaars/svg?seed='+encodeURIComponent(c&&c.name||'x')); }
+
+/* ============ 状态栏 ============ */
+function tick(){
+  const d=new Date();
+  $('#sbTime').textContent=fmtTime(d);
+  $('#lockTime').textContent=fmtTime(d);
+  $('#lockDate').textContent=fmtDate(d);
+  $('#widgetTime').textContent=fmtTime(d);
+  $('#widgetDate').textContent=fmtDate(d);
+}
+tick(); setInterval(tick, 1000*10);
+
+/* ============ 适配缩放（修复输入时缩小）============ */
+// 关键：只在加载/横竖屏切换时计算一次 scale，键盘弹出触发的 resize 不再缩小手机
+let baseScale = null;
+function computeScale(){
+  const sw=380, sh=800;
+  // 用 screen 高度作为基准，避免键盘弹出导致 height 变小
+  const vh = Math.max(window.innerHeight, window.screen && window.screen.height ? window.screen.height : window.innerHeight);
+  const vw = window.innerWidth;
+  return Math.min((vw-20)/sw, (vh-20)/sh, 1);
+}
+function fitScale(){
+  if(baseScale===null) baseScale=computeScale();
+  document.documentElement.style.setProperty('--scale', baseScale);
+}
+fitScale();
+let orientTimer=null;
+window.addEventListener('resize', ()=>{
+  // 仅在宽度明显变化（横竖屏切换）时重算，忽略键盘引起的高度变化
+  if(window.innerWidth !== (window._lastW||window.innerWidth)){
+    window._lastW = window.innerWidth;
+    baseScale = computeScale(); fitScale();
+  }
+});
+window.addEventListener('orientationchange', ()=>{ clearTimeout(orientTimer); orientTimer=setTimeout(()=>{ baseScale=computeScale(); fitScale(); }, 200); });
+
+// 输入框聚焦时滚动到可视区（防止被键盘挡住）
+document.addEventListener('focusin', function(e){
+  if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA')){
+    setTimeout(()=>{ try{ e.target.scrollIntoView({block:'center', behavior:'smooth'}); }catch(_){ } }, 300);
+  }
+}, true);
+
+/* ============ 解锁（滑动）============ */
+(function(){
+  const bar=$('#unlockBar'), knob=$('#unlockKnob'), hint=$('#unlockHint');
+  let dragging=false, startX=0, max=0;
+  function maxMove(){ return bar.clientWidth - knob.clientWidth - 8; }
+  function setX(x){ knob.style.left=(4+x)+'px'; hint.style.opacity = x>5?'0':'1'; }
+  function start(cx){ dragging=true; startX=cx; max=maxMove(); }
+  function move(cx){ if(!dragging) return; let x=cx-startX; if(x<0)x=0; if(x>max)x=max; setX(x); }
+  function end(){ if(!dragging) return; dragging=false; const cur=parseFloat(knob.style.left||'4')-4; if(cur>max*0.85) unlock(); else { knob.style.transition='left .25s'; setX(0); setTimeout(()=>knob.style.transition='',260); } }
+  function unlock(){ const ls=$('#lockscreen'), hs=$('#homescreen'); ls.classList.add('hidden'); setTimeout(()=>{ ls.style.display='none'; hs.classList.remove('hidden'); },350); }
+  bar.addEventListener('mousedown', e=>{ start(e.clientX); e.preventDefault(); });
+  window.addEventListener('mousemove', e=>move(e.clientX));
+  window.addEventListener('mouseup', end);
+  bar.addEventListener('touchstart', e=>{ start(e.touches[0].clientX); }, {passive:true});
+  window.addEventListener('touchmove', e=>{ if(dragging) move(e.touches[0].clientX); }, {passive:true});
+  window.addEventListener('touchend', end);
+})();
+
+/* ============ 应用窗口管理 ============ */
+const wins = {
+  social:'#win-social', addfriend:'#win-addfriend', chat:'#win-chat', call:'#win-call',
+  phone:'#win-phone', messages:'#win-messages', memo:'#win-memo', memotpl:'#win-memotpl',
+  settings:'#win-settings', character:'#win-character', charedit:'#win-charedit'
+};
+const winStack = []; // 用于返回
+function openWin(id, pushStack=true){
+  const el=$(wins[id]); if(!el) return;
+  el.classList.remove('hidden');
+  if(pushStack) winStack.push(id);
+}
+function closeWin(id){
+  $(wins[id]).classList.add('hidden');
+  // 从栈中移除
+  let i; while((i=winStack.indexOf(id))>=0) winStack.splice(i,1);
+}
+function backFrom(id){
+  closeWin(id);
+}
+$$('[data-back]').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    const win=el.dataset.win;
+    if(win) backFrom(win);
+  });
+});
+// 桌面/dock 图标
+$$('[data-app]').forEach(el=>el.addEventListener('click', ()=>openWin(el.dataset.app)));
+
+/* ============ API 配置 ============ */
+const apiConf = store.get('phone:api', { url:'', key:'', model:'', temp:0.9 });
+function loadApiUI(){
+  $('#apiUrl').value=apiConf.url||''; $('#apiKey').value=apiConf.key||'';
+  $('#apiModel').value=apiConf.model||''; $('#apiTemp').value=apiConf.temp??0.9;
+}
+loadApiUI();
+$('#btnSaveApi').addEventListener('click', ()=>{
+  apiConf.url=$('#apiUrl').value.trim().replace(/\/$/,'');
+  apiConf.key=$('#apiKey').value.trim();
+  apiConf.model=$('#apiModel').value.trim();
+  apiConf.temp=parseFloat($('#apiTemp').value)||0.9;
+  store.set('phone:api', apiConf); toast('已保存 API 配置');
+});
+$('#btnTestApi').addEventListener('click', async ()=>{
+  const url=$('#apiUrl').value.trim().replace(/\/$/,''), key=$('#apiKey').value.trim(), model=$('#apiModel').value.trim();
+  if(!url||!key||!model){ toast('请填完 URL / Key / 模型'); return; }
+  toast('测试中...');
+  try{ const r=await fetch(url.replace(/\/v1$/,'')+'/v1/models', {headers:{'Authorization':'Bearer '+key}}); if(r.ok) toast('✓ 连接成功'); else toast('✗ HTTP '+r.status); }
+  catch(e){ toast('✗ 网络错误'); }
+});
+
+/* ============ 调用 AI ============ */
+async function callAI(messages, {temperature, withSystem=true}={}){
+  const c=store.get('phone:api', {url:'',key:'',model:'',temp:0.9});
+  if(!c.url||!c.key||!c.model) throw new Error('NO_API');
+  const base=c.url.replace(/\/v1$/,'')+'/v1/chat/completions';
+  const fullMessages = withSystem ? [{role:'system', content:SYSTEM_PRESET}, ...messages] : messages;
+  const r=await fetch(base, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+c.key}, body: JSON.stringify({ model:c.model, temperature: temperature??c.temp, messages: fullMessages }) });
+  if(!r.ok) throw new Error('HTTP_'+r.status);
+  const data=await r.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+// 无 API 时的示例回退
+function fallbackText(prompt){ return '（未配置 API，此为示例回复）你好呀，我是角色，很高兴和你聊天。'; }
+
+/* ============ 壁纸 ============ */
+const wallConf = store.get('phone:wall', { home:'', lock:'' });
+function applyWall(){
+  if(wallConf.home) $('#homescreen').style.backgroundImage=`url("${wallConf.home}")`;
+  else $('#homescreen').style.background='linear-gradient(135deg,#1e3a8a,#0ea5e9)';
+  if(wallConf.lock) $('#lockscreen').style.backgroundImage=`url("${wallConf.lock}")`;
+  else $('#lockscreen').style.background='linear-gradient(135deg,#0f172a,#1e3a8a)';
+}
+function loadWallUI(){ $('#wpHome').value=wallConf.home||''; $('#wpLock').value=wallConf.lock||''; }
+loadWallUI(); applyWall();
+$('#btnApplyWall').addEventListener('click', ()=>{
+  wallConf.home=$('#wpHome').value.trim(); wallConf.lock=$('#wpLock').value.trim();
+  store.set('phone:wall', wallConf); applyWall(); toast('壁纸已应用');
+});
+$('#btnDefWall').addEventListener('click', ()=>{
+  wallConf.home=''; wallConf.lock=''; $('#wpHome').value=''; $('#wpLock').value='';
+  store.set('phone:wall', wallConf); applyWall(); toast('已恢复默认壁纸');
+});
+
+/* ============ 通话背景 ============ */
+const callConf = store.get('phone:call', { bg:'' });
+$('#callBg').value = callConf.bg||'';
+function applyCallBg(){
+  const cs=$('#win-call');
+  if(callConf.bg) cs.style.backgroundImage=`url("${callConf.bg}")`;
+  else cs.style.background='linear-gradient(135deg,#1e293b,#0f172a)';
+}
+applyCallBg();
+$('#btnSaveCallBg').addEventListener('click', ()=>{
+  callConf.bg=$('#callBg').value.trim(); store.set('phone:call', callConf); applyCallBg(); toast('通话背景已保存');
+});
+
+/* ============ 行为模式 ============ */
+const behavior = store.get('phone:behavior', { mode:'reactive', interval:10 });
+function loadBehaviorUI(){
+  $('#behaviorMode').value=behavior.mode;
+  $('#behaviorInterval').value=behavior.interval;
+  $('#rowInterval').style.display = behavior.mode==='timed' ? '' : 'none';
+}
+loadBehaviorUI();
+$('#behaviorMode').addEventListener('change', ()=>{ $('#rowInterval').style.display = $('#behaviorMode').value==='timed' ? '' : 'none'; });
+$('#btnSaveBehavior').addEventListener('click', ()=>{
+  behavior.mode=$('#behaviorMode').value;
+  behavior.interval=parseInt($('#behaviorInterval').value)||10;
+  store.set('phone:behavior', behavior);
+  setupTimers(); toast('行为模式已保存');
+});
+// 定时器
+let timerHandle=null;
+function setupTimers(){
+  if(timerHandle){ clearInterval(timerHandle); timerHandle=null; }
+  if(behavior.mode==='timed'){
+    timerHandle=setInterval(()=>{
+      // 定时自动生成（仅在用户开过应用后才有数据感）
+      try{ generateSms(true); generateMoments(true); }catch(_){}
+    }, Math.max(1,behavior.interval)*60*1000);
+  }
+}
+setupTimers();
+
+/* ============ 创造角色 ============ */
+let characters = store.get('phone:chars', []);
+let editingIdx = -1;
+function renderChars(){
+  const list=$('#charList'); list.innerHTML='';
+  if(!characters.length){ list.innerHTML='<div class="empty">还没有角色，点右上角「+新建」创建一个</div>'; return; }
+  characters.forEach((c,i)=>{
+    const card=document.createElement('div'); card.className='char-card';
+    card.innerHTML=`<img class="char-avatar" src="${avatarFor(c)}"><div class="char-info"><div class="cn">${escapeHtml(c.name||'未命名')}</div><div class="cd">${escapeHtml((c.age||'')+' '+(c.gender||'')+' '+(c.personality||''))}</div></div><span class="char-edit" data-i="${i}">编辑</span><span class="char-del" data-i="${i}">删除</span>`;
+    list.appendChild(card);
+  });
+  $$('.char-edit', list).forEach(el=>el.addEventListener('click', ()=>{ editingIdx=parseInt(el.dataset.i); loadCharEdit(); openWin('charedit'); }));
+  $$('.char-del', list).forEach(el=>el.addEventListener('click', ()=>{ characters.splice(parseInt(el.dataset.i),1); store.set('phone:chars', characters); renderChars(); refreshSocial(); }));
+}
+function loadCharEdit(){
+  const c=characters[editingIdx]||{};
+  $('#chName').value=c.name||''; $('#chAvatar').value=c.avatar||''; $('#chAge').value=c.age||''; $('#chGender').value=c.gender||''; $('#chPersonality').value=c.personality||''; $('#chBackground').value=c.background||''; $('#chStyle').value=c.style||'';
+}
+$('#btnNewChar').addEventListener('click', ()=>{ editingIdx=-1; loadCharEdit(); openWin('charedit'); });
+$('#btnSaveChar').addEventListener('click', ()=>{
+  const c={ name:$('#chName').value.trim(), avatar:$('#chAvatar').value.trim(), age:$('#chAge').value.trim(), gender:$('#chGender').value.trim(), personality:$('#chPersonality').value.trim(), background:$('#chBackground').value.trim(), style:$('#chStyle').value.trim() };
+  if(editingIdx<0){ characters.push(c); editingIdx=characters.length-1; } else characters[editingIdx]=c;
+  store.set('phone:chars', characters); renderChars(); refreshSocial(); toast('角色已保存'); backFrom('charedit'); openWin('character');
+});
+$('[data-back-char]').addEventListener('click', ()=>openWin('character'));
+
+/* ============ 我（玩家资料）============ */
+const me = store.get('phone:me', { name:'我', avatar:'' });
+function loadMeUI(){
+  $('#meName').textContent=me.name||'我';
+  $('#meAvatar').src = me.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=me';
+  $('#meAvatarInput').value=me.avatar||'';
+  $('#meNameInput').value=me.name||'';
+}
+$('#btnSaveMe').addEventListener('click', ()=>{
+  me.avatar=$('#meAvatarInput').value.trim(); me.name=$('#meNameInput').value.trim()||'我';
+  store.set('phone:me', me); loadMeUI(); toast('已保存');
+
+});
+loadMeUI();
+
+/* ============ 社交应用：好友 / 聊天 / 朋友圈 ============ */
+// 好友 = 角色子集（用户从角色里"加好友"）
+let friends = store.get('phone:friends', []); // 存角色 index
+let chats = store.get('phone:chats', {});      // { friendId: [{role:'me'|'them', text, time}] }
+let moments = store.get('phone:moments', []);
+let smsList = store.get('phone:sms', []);
+
+function friendObj(fid){ const c=characters[fid]; if(!c) return null; return Object.assign({}, c, {fid}); }
+function refreshSocial(){
+  renderChatList(); renderContacts(); renderMomentsList(); renderAddFriend(); renderPhoneContacts();
+}
+
+// tab 切换
+$$('.tab-item').forEach(el=>el.addEventListener('click', ()=>{
+  $$('.tab-item').forEach(x=>x.classList.remove('active'));
+  $$('.tab-pane').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  $('#pane-'+el.dataset.tab).classList.add('active');
+  const titles={chats:'AI聊天', contacts:'通讯录', moments:'朋友圈', me:'我'};
+  $('#socialTitle').textContent=titles[el.dataset.tab]||'AI聊天';
+  // 加号只在通讯录显示
+  $('#socialPlus').style.display = el.dataset.tab==='contacts' ? '' : 'none';
+  // 进入朋友圈/信息时按行为模式处理
+  if(el.dataset.tab==='moments') onEnterFeed('moments');
+}));
+putIcon('socialPlus','plus');
+$('#socialPlus').addEventListener('click', ()=>openWin('addfriend'));
+putIcon('tabChats','chatTab'); putIcon('tabContacts','contactsTab'); putIcon('tabMoments','momentsTab'); putIcon('tabMe','meTab');
+// 初始加号隐藏
+$('#socialPlus').style.display='none';
+
+function renderChatList(){
+  const box=$('#chatList');
+  const ids=friends.filter(fid=>chats[fid] && chats[fid].length);
+  if(!ids.length){ box.className='empty'; box.textContent='还没有聊天，去通讯录加好友'; return; }
+  box.className='';
+  box.innerHTML='';
+  ids.forEach(fid=>{
+    const f=friendObj(fid); if(!f) return;
+    const msgs=chats[fid]; const last=msgs[msgs.length-1];
+    const c=document.createElement('div'); c.className='chat-list-item';
+    c.innerHTML=`<img class="char-avatar" src="${avatarFor(f)}"><div class="last"><div class="ln">${escapeHtml(f.name)}</div><div class="lm">${escapeHtml(last.text)}</div></div><div class="lt">${escapeHtml(last.time||'')}</div>`;
+    c.addEventListener('click', ()=>openChat(fid));
+    box.appendChild(c);
+  });
+}
+function renderContacts(){
+  const box=$('#contactList');
+  if(!friends.length){ box.className='empty'; box.textContent='通讯录为空，点右上角 + 加好友'; return; }
+  box.className='contact-list';
+  box.innerHTML='';
+  friends.forEach(fid=>{
+    const f=friendObj(fid); if(!f) return;
+    const c=document.createElement('div'); c.className='contact-card';
+    c.innerHTML=`<img class="char-avatar" src="${avatarFor(f)}"><div class="char-info"><div class="cn">${escapeHtml(f.name)}</div><div class="cd">${escapeHtml((f.personality||''))}</div></div>`;
+    c.addEventListener('click', ()=>openChat(fid));
+    box.appendChild(c);
+  });
+}
+function renderAddFriend(){
+  const box=$('#addFriendList');
+  box.innerHTML='';
+  if(!characters.length){ box.innerHTML='<div class="empty">还没有角色，先去「创造角色」建一个</div>'; return; }
+  characters.forEach((c,i)=>{
+    const isFriend=friends.includes(i);
+    const card=document.createElement('div'); card.className='contact-card';
+    card.innerHTML=`<img class="char-avatar" src="${avatarFor(c)}"><div class="char-info"><div class="cn">${escapeHtml(c.name||'未命名')}</div><div class="cd">${escapeHtml((c.personality||''))}</div></div><button class="btn ${isFriend?'ghost':''} sm" data-add="${i}">${isFriend?'已添加':'加好友'}</button>`;
+    box.appendChild(card);
+  });
+  $$('[data-add]', box).forEach(b=>b.addEventListener('click', ()=>{
+    const i=+b.dataset.add;
+    if(!friends.includes(i)){ friends.push(i); chats[i]=chats[i]||[]; store.set('phone:friends', friends); store.set('phone:chats', chats); toast('已添加好友'); refreshSocial(); }
+  }));
+}
+
+/* 朋友圈列表 */
+function renderMomentsList(){
+  const box=$('#momentsList');
+  if(!moments.length){ box.className='empty'; box.textContent='朋友圈还没有动态'; return; }
+  box.className='feed-list';
+  box.innerHTML='';
+  // 倒序展示
+  [...moments].reverse().forEach(m=>{
+    const f = friendObj(m.fid); const name = f? f.name : (m.author||'未知');
+    const av = f? avatarFor(f) : 'https://api.dicebear.com/7.x/avataaars/svg?seed='+encodeURIComponent(name);
+    const card=document.createElement('div'); card.className='moment-card';
+    card.innerHTML=`<div class="m-head"><img src="${av}"><div class="m-name">${escapeHtml(name)}</div></div><div class="m-text">${escapeHtml(m.text)}</div><div class="m-foot">${escapeHtml(m.time||'')}</div>`;
+    box.appendChild(card);
+  });
+}
+$('#btnRefreshMoments').addEventListener('click', ()=>generateMoments(false));
+
+/* 信息（短信）列表 */
+function renderSmsList(){
+  const box=$('#smsList');
+  if(!smsList.length){ box.innerHTML='<div class="empty">还没有信息，点右上角刷新</div>'; return; }
+  box.innerHTML='';
+  [...smsList].reverse().forEach(s=>{
+    const f = friendObj(s.fid); const name = f? f.name : (s.author||'未知');
+    const av = f? avatarFor(f) : 'https://api.dicebear.com/7.x/avataaars/svg?seed='+encodeURIComponent(name);
+    const card=document.createElement('div'); card.className='sms-card';
+    card.innerHTML=`<div class="s-head"><img src="${av}"><div class="s-name">${escapeHtml(name)}</div><div class="s-time">${escapeHtml(s.time||'')}</div></div><div class="s-text">${escapeHtml(s.text)}</div>`;
+    box.appendChild(card);
+  });
+}
+$('#btnRefreshSms').addEventListener('click', ()=>generateSms(false));
+
+/* 进入 feed 应用时的行为处理 */
+function onEnterFeed(type){
+  if(behavior.mode==='proactive'){
+    // 主动模式：进入即刷新一次（若上次刷新间隔较远）
+    if(type==='moments') generateMoments(true);
+    else generateSms(true);
+  }
+}
+// 进入信息应用
+const _openMessages = openWin;
+// 监听 messages 打开
+document.querySelectorAll('[data-app="messages"]').forEach(el=>el.addEventListener('click', ()=>onEnterFeed('sms')));
+
+/* ============ 后台模板生成（信息/朋友圈）============ */
+function buildBackendPrompt(tpl, friendNames){
+  const names=parseFields(tpl.template);
+  const desc=names.map(n=>{
+    const f=(tpl.fields||[]).find(x=>x.name===n)||{type:'text'};
+    let hint='';
+    if(f.type==='date') hint='必须是 YYYY-MM-DD 格式日期';
+    else if(f.type==='number') hint='必须是数字'+(f.constraint?('('+f.constraint+')'):'');
+    else if(f.type==='select') hint=f.constraint||('从下列值选');
+    else if(f.constraint) hint=f.constraint;
+    if(n==='发送者'||n==='作者') hint='从这些好友中随机一个：'+(friendNames.join('、')||'任意角色');
+    return `- ${n}: ${hint||'自由文本'}`;
+  }).join('\n');
+  return `请根据模板填充 ${tpl.count} 条不同的内容，每条用 === 分隔。
+模板（{{字段}} 处替换为内容，其余文字保留）：
+---
+${tpl.template}
+---
+字段约束：
+${desc}
+只输出填充后的内容，不要解释，严格用 === 分隔每条。`;
+}
+function parseFields(tpl){ const re=/\{\{\s*([^}]+?)\s*\}\}/g; const out=[]; let m; while((m=re.exec(tpl))) out.push(m[1]); return [...new Set(out)]; }
+function splitResults(text){ return text.split(/===+/).map(s=>s.trim()).filter(Boolean); }
+
+function friendNames(){ return friends.map(fid=>{ const f=friendObj(fid); return f?f.name:null; }).filter(Boolean); }
+
+async function generateSms(silent){
+  if(!friends.length){ if(!silent) toast('先加好友才能收到信息'); return; }
+  const box=$('#smsList');
+  if(!silent) box.innerHTML='<div class="loading">生成中…</div>';
+  try{
+    let results;
+    try{
+      const out=await callAI([{role:'user', content: buildBackendPrompt(BACKEND_TEMPLATES.sms, friendNames())}]);
+      results=splitResults(out); if(!results.length) results=[out.trim()];
+    }catch(e){
+      if(e.message==='NO_API'){ if(!silent) toast('未配置 API'); return; }
+      else throw e;
+    }
+    const now=fmtTime(new Date());
+    results.forEach(r=>{
+      // 解析 "发送者：内容"
+      let author='', text=r;
+      const m=r.match(/^(.{1,12})[：:]\s*([\s\S]+)$/);
+      if(m){ author=m[1].trim(); text=m[2].trim(); }
+      // 匹配好友
+      let fid = friends.find(fid=>{ const f=friendObj(fid); return f && f.name===author; });
+      if(fid===undefined) fid=friends[Math.floor(Math.random()*friends.length)];
+      smsList.push({fid, author, text, time:now});
+    });
+    if(smsList.length>30) smsList=smsList.slice(-30);
+    store.set('phone:sms', smsList);
+    renderSmsList();
+  }catch(e){
+    if(!silent) box.innerHTML=`<div class="empty">生成失败：${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function generateMoments(silent){
+  if(!friends.length){ if(!silent) toast('先加好友才能看到朋友圈'); return; }
+  const box=$('#momentsList');
+  if(!silent) box.innerHTML='<div class="loading">生成中…</div>';
+  try{
+    let results;
+    try{
+      const out=await callAI([{role:'user', content: buildBackendPrompt(BACKEND_TEMPLATES.moment, friendNames())}]);
+      results=splitResults(out); if(!results.length) results=[out.trim()];
+    }catch(e){
+      if(e.message==='NO_API'){ if(!silent) toast('未配置 API'); return; }
+      else throw e;
+    }
+    const today=new Date().toISOString().slice(0,10);
+    results.forEach(r=>{
+      // 解析 作者\n内容\n时间
+      const lines=r.split('\n');
+      let author='', text=r, time=today;
+      if(lines.length>=2){ author=lines[0].trim(); time=lines[lines.length-1].trim().match(/\d{4}-\d{2}-\d{2}/)?.[0]||today; text=lines.slice(1,-1).join('\n').trim()||r; }
+      let fid=friends.find(fid=>{ const f=friendObj(fid); return f && f.name===author; });
+      if(fid===undefined) fid=friends[Math.floor(Math.random()*friends.length)];
+      moments.push({fid, author, text, time});
+    });
+    if(moments.length>50) moments=moments.slice(-50);
+    store.set('phone:moments', moments);
+    renderMomentsList();
+  }catch(e){
+    if(!silent) box.innerHTML=`<div class="empty">生成失败：${escapeHtml(e.message)}</div>`;
+  }
+}
+
+/* ============ 聊天对话 ============ */
+let currentChatFid = null;
+function openChat(fid){
+  currentChatFid=fid;
+  const f=friendObj(fid);
+  $('#chatTitle').textContent=f?f.name:'聊天';
+  renderChatMsgs();
+  $('#chatInput').value='';
+  openWin('chat');
+}
+function renderChatMsgs(){
+  const box=$('#chatMsgs'); box.innerHTML='';
+  const msgs=chats[currentChatFid]||[];
+  msgs.forEach(m=>{
+    const b=document.createElement('div');
+    b.className='bubble '+(m.role==='me'?'right':'left');
+    b.textContent=m.text;
+    box.appendChild(b);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+$('#btnSend').addEventListener('click', sendChat);
+$('#chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+async function sendChat(){
+  const inp=$('#chatInput'); const text=inp.value.trim(); if(!text) return;
+  const f=friendObj(currentChatFid); if(!f) return;
+  chats[currentChatFid]=chats[currentChatFid]||[];
+  chats[currentChatFid].push({role:'me', text, time:fmtTime(new Date())});
+  inp.value=''; renderChatMsgs(); renderChatList();
+  store.set('phone:chats', chats);
+  // 生成回复（被动模式下也回应玩家消息）
+  try{
+    const sys=`你在扮演角色：${f.name}。${f.background?('背景：'+f.background):''} 性格：${f.personality||''}。说话风格：${f.style||''}。`;
+    const history=chats[currentChatFid].slice(-8).map(m=>({role: m.role==='me'?'user':'assistant', content:m.text}));
+    const out=await callAI([{role:'system', content:sys}, ...history, {role:'user', content:text}]);
+    chats[currentChatFid].push({role:'them', text:out.trim(), time:fmtTime(new Date())});
+    store.set('phone:chats', chats); renderChatMsgs(); renderChatList();
+  }catch(e){
+    if(e.message==='NO_API'){
+      chats[currentChatFid].push({role:'them', text:'（未配置 API，无法回复）', time:fmtTime(new Date())});
+      store.set('phone:chats', chats); renderChatMsgs();
+    } else {
+      toast('回复失败：'+e.message);
+    }
+  }
+}
+
+/* ============ 通话 ============ */
+let callFid = null;
+let callDialogs = [];
+function startCall(fid){
+  callFid=fid; callDialogs=[];
+  const f=friendObj(fid);
+  $('#callName').textContent=f?f.name:'通话';
+  $('#callAvatar').src = f? avatarFor(f) : '';
+  $('#callStatus').textContent='通话中';
+  $('#callDialogs').innerHTML='';
+  $('#callInput').value='';
+  applyCallBg();
+  openWin('call', false); // 不入栈，单独管理
+}
+$('#btnStartCall').addEventListener('click', ()=>{ if(currentChatFid!=null) startCall(currentChatFid); });
+function renderCallDialogs(){
+  const box=$('#callDialogs'); box.innerHTML='';
+  callDialogs.forEach(d=>{
+    const b=document.createElement('div'); b.className='call-bubble'+(d.role==='me'?' me':''); b.textContent=d.text; box.appendChild(b);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+$('#btnSay').addEventListener('click', sayInCall);
+$('#callInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sayInCall(); });
+async function sayInCall(){
+  const inp=$('#callInput'); const text=inp.value.trim(); if(!text) return;
+  const f=friendObj(callFid); if(!f) return;
+  callDialogs.push({role:'me', text});
+  inp.value=''; renderCallDialogs();
+  try{
+    const sys=`你在电话里和玩家通话，你是角色：${f.name}。${f.background?('背景：'+f.background):''} 性格：${f.personality||''}。说话风格：${f.style||''}。这是口语对话，更简短、即时。`;
+    const history=callDialogs.slice(-8).map(d=>({role: d.role==='me'?'user':'assistant', content:d.text}));
+    const out=await callAI([{role:'system', content:sys}, ...history, {role:'user', content:text}]);
+    callDialogs.push({role:'them', text:out.trim()}); renderCallDialogs();
+  }catch(e){
+    if(e.message==='NO_API'){ callDialogs.push({role:'them', text:'（未配置 API，无法通话）'}); renderCallDialogs(); }
+    else toast('通话失败：'+e.message);
+  }
+}
+$('#btnHangup').addEventListener('click', ()=>{
+  // 挂断：把通话记录存为聊天
+  if(callFid!=null && callDialogs.length){
+    chats[callFid]=chats[callFid]||[];
+    callDialogs.forEach(d=>chats[callFid].push({role:d.role==='me'?'me':'them', text:d.text, time:fmtTime(new Date())}));
+    store.set('phone:chats', chats);
+  }
+  callFid=null; callDialogs=[];
+  closeWin('call');
+  // 回到聊天或桌面
+  if(currentChatFid!=null){ renderChatMsgs(); renderChatList(); }
+});
+
+/* ============ 电话应用（联系人 → 通话）============ */
+function renderPhoneContacts(){
+  const box=$('#phoneContactList');
+  if(!friends.length){ box.innerHTML='<div class="empty">还没有好友，去AI聊天加好友</div>'; return; }
+  box.innerHTML='';
+  friends.forEach(fid=>{
+    const f=friendObj(fid); if(!f) return;
+    const c=document.createElement('div'); c.className='contact-card';
+    c.innerHTML=`<img class="char-avatar" src="${avatarFor(f)}"><div class="char-info"><div class="cn">${escapeHtml(f.name)}</div><div class="cd">${escapeHtml((f.personality||''))}</div></div>`;
+    c.addEventListener('click', ()=>{ startCall(fid); });
+    box.appendChild(c);
+  });
+}
+
+/* ============ 备忘录（保留模板UI）============ */
+const tplConf = store.get('phone:memoTpl', { template:'# {{标题}}\n\n{{内容}}\n\n日期：{{日期}}', count:3, fields:[{name:'标题',type:'text'},{name:'内容',type:'text'},{name:'日期',type:'date'}] });
+function loadTplUI(){ $('#tplText').value=tplConf.template; $('#tplCount').value=tplConf.count; renderTplFields(); }
+function renderTplFields(){
+  const box=$('#tplFields'); box.innerHTML='';
+  tplConf.fields.forEach((f,i)=>{
+    const row=document.createElement('div'); row.className='tpl-field-row';
+    row.innerHTML=`<input placeholder="字段名" value="${escapeHtml(f.name)}" data-i="${i}" data-k="name"><select data-i="${i}" data-k="type"><option value="text">文本</option><option value="date" ${f.type==='date'?'selected':''}>日期</option><option value="number" ${f.type==='number'?'selected':''}>数字</option><option value="select" ${f.type==='select'?'selected':''}>枚举</option></select><input placeholder="约束/选项(逗号)" value="${escapeHtml(f.constraint||'')}" data-i="${i}" data-k="constraint" style="max-width:140px"><button class="btn ghost sm" data-del="${i}">×</button>`;
+    box.appendChild(row);
+  });
+  $$('input[data-k],select[data-k]', box).forEach(el=>el.addEventListener('change', ()=>{ const i=+el.dataset.i, k=el.dataset.k; tplConf.fields[i][k]=el.value; }));
+  $$('[data-del]', box).forEach(el=>el.addEventListener('click', ()=>{ tplConf.fields.splice(+el.dataset.del,1); renderTplFields(); }));
+}
+$('#btnAddField').addEventListener('click', ()=>{ tplConf.fields.push({name:'',type:'text'}); renderTplFields(); });
+function saveTpl(){ tplConf.template=$('#tplText').value; tplConf.count=parseInt($('#tplCount').value)||1; store.set('phone:memoTpl', tplConf); }
+$('#btnSaveTpl').addEventListener('click', ()=>{ saveTpl(); toast('模板已保存'); backFrom('memotpl'); openWin('memo'); });
+$('[data-back-memo]').addEventListener('click', ()=>{ saveTpl(); openWin('memo'); });
+loadTplUI();
+// 备忘录头加刷新按钮
+(function(){
+  const header=$('#win-memo .app-header');
+  const btn=document.createElement('div'); btn.className='action'; btn.textContent='刷新'; btn.style.marginRight='10px';
+  btn.addEventListener('click', refreshMemo);
+  header.insertBefore(btn, $('#btnMemoTpl'));
+})();
+function buildMemoPrompt(){
+  const t=tplConf.template; const names=parseFields(t);
+  const desc=names.map(n=>{
+    const f=tplConf.fields.find(x=>x.name===n)||{type:'text'};
+    let hint='';
+    if(f.type==='date') hint='必须是 YYYY-MM-DD 格式日期';
+    else if(f.type==='number') hint='必须是数字'+(f.constraint?('('+f.constraint+')'):'');
+    else if(f.type==='select') hint='只能从这些值选：'+(f.constraint||'');
+    else if(f.constraint) hint='约束：'+f.constraint;
+    return `- ${n}: ${hint||'自由文本'}`;
+  }).join('\n');
+  return `请根据模板填充 ${tplConf.count} 条不同内容，每条用 === 分隔。
+模板（{{字段}} 处替换为内容，保留其余结构）：
+---
+${t}
+---
+字段约束：
+${desc}
+只输出填充后的内容，不要解释，用 === 分隔。`;
+}
+async function refreshMemo(){
+  const box=$('#memoContent'); box.innerHTML='<div class="loading">AI 生成中…</div>';
+  try{
+    let results;
+    try{
+      const out=await callAI([{role:'user', content:buildMemoPrompt()}]);
+      results=splitResults(out); if(!results.length) results=[out.trim()];
+    }catch(e){
+      if(e.message==='NO_API'){ box.innerHTML='<div class="empty">未配置 API，请在设置中填写接口</div>'; return; }
+      else throw e;
+    }
+    const html=results.map(r=>{
+      const lines=r.split('\n'); let title='', body=r;
+      const ti=lines.findIndex(l=>/^#\s+/.test(l));
+      if(ti>=0){ title=lines[ti].replace(/^#\s+/,''); lines.splice(ti,1); body=lines.join('\n').trim(); }
+      return `<div class="memo-card">${title?`<div class="m-title">${escapeHtml(title)}</div>`:''}<div>${escapeHtml(body)}</div><div class="m-meta">${fmtDate(new Date())} · AI生成</div></div>`;
+    }).join('');
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML=`<div class="empty">生成失败：${escapeHtml(e.message)}</div>`;
+  }
+}
+
+/* ============ 初始化图标 ============ */
+putIcon('icSocial','social'); putIcon('icPhone','phone'); putIcon('icSms','sms'); putIcon('icMemo','memo');
+putIcon('icSettings','settings'); putIcon('icCharacter','character');
+$$('[data-back]').forEach(el=>el.innerHTML=SVG.back);
+$('#btnStartCall').innerHTML=SVG.phoneCall;
+$('#btnSend').innerHTML=SVG.send;
+$('#btnSay').innerHTML=SVG.send;
+$('#btnHangup').innerHTML=SVG.hangup;
+$('#btnRefreshSms').textContent='刷新';
+$('#btnMemoTpl').textContent='模板';
+$('#socialPlus').innerHTML=SVG.plus;
+// 给 data-back-char / data-back-memo 的返回按钮也放上箭头
+$$('[data-back-char],[data-back-memo]').forEach(el=>el.innerHTML=SVG.back);
+
+/* ============ 初始渲染 ============ */
+renderChars();
+refreshSocial();
+renderSmsList();
+</script>
+</body>
+</html>
